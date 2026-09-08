@@ -15,7 +15,7 @@ from survival_data import CANDIDATE_FEATURES, FINAL_FEATURES, load_and_engineer,
 from survival_helpers import build_pipe, cindex, nested_cv_risk
 
 # Settings
-DATA_PATH = r'R:\cerebral_avm\Precision_Medicine_Query_Optimized_2_deident.xlsx'
+DATA_PATH = r'path/to/your/data.xlsx'
 SEED = 42
 MIN_SIZE = 2
 MAX_SIZE = 12
