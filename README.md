@@ -105,7 +105,7 @@ pip install -r requirements.txt
 python run_all.py
 ```
 
-**Constants are transcribed by hand.** Nothing from this analysis is loaded
+**Constants are hardcoded.** Nothing from this analysis is loaded
 at runtime. The fitted values live in `avm-dashboard/src/lib/ruptureRisk.ts` (the three
 coefficients, the StandardScaler mean and SD for each predictor, and baseline
 survival at 2, 5 and 10 years).
