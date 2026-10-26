@@ -1,6 +1,4 @@
-"""
-Data loading and feature engineering for the longitudinal cohort
-"""
+"""Loads the registry and builds the longitudinal cohort, censored at first treatment."""
 import numpy as np
 import pandas as pd
 
@@ -14,33 +12,12 @@ NUM = ["Age_dx", "max_Size", "Fup_Duration_Year", "NumFupHemorrhages",
        "Feeder_Territory_Number", "Drainage_vein_deep",
        "Drainage_vein_superficial", "Drainage_vein_varices",
        "Drainage_vein_stenosis", "Aneurysm_intranidal", "Aneurysm_prenidal",
-       "Aneurysm_postnidal", "Aneurysm_unrelated",
-       "Location_frontal", "Location_temporal", "Location_parietal",
-       "Location_occipital", "Location_thalamus", "Location_basal_ganglia",
-       "Location_brainstem", "Location_Cerebellar_hemisphere",
-       "Location_Cerebellar_vermis", "Follow_hemorrhge"]
-
-FINAL_FEATURES = ["Age_dx", "Deep_Loc_excl", "Ever_Ruptured"]
-
-CANDIDATE_FEATURES = [
-    "Age_dx", "Gender", "Race_nonwhite", "Hypertension", "Smoking",
-    "Alcohol", "Substance", "max_Size", "Size_small", "Deep_Loc_excl",
-    "Excl_Deep_Drain", "Single_Feeder", "Drainage_vein_varices",
-    "Drainage_vein_stenosis", "Aneurysm_intranidal", "Ever_Ruptured",
-]
-
-R2ED_FEATS = ["Race_nonwhite", "Deep_Loc_excl", "Size_small",
-              "Excl_Deep_Drain", "Single_Feeder"]
+       "Aneurysm_postnidal", "Aneurysm_unrelated", *DEEP, *LOBAR,
+       "Follow_hemorrhge"]
 
 
 def load_and_engineer(data_path):
-    """Read the registry and build the longitudinal analysis frame.
-
-    Events are hemorrhages during follow-up. Patients who underwent
-    microsurgery, radiosurgery or embolization are censored at treatment, so
-    the at-risk interval covers the untreated natural history only. Patients
-    without a recorded follow-up duration drop out here.
-    """
+    """Read the registry and return one row per patient with time and event."""
     df_raw = pd.read_excel(data_path)
     df_raw.columns = df_raw.columns.str.strip()
 
@@ -52,11 +29,11 @@ def load_and_engineer(data_path):
             df_raw[c] = pd.to_numeric(df_raw[c], errors="coerce")
     df_raw.replace(99, np.nan, inplace=True)
 
+    # Demographics
     if "Gender" in df_raw.columns:
         gs = df_raw["Gender"].astype(str).str.strip().str.lower()
         df_raw["Gender"] = gs.map({"2_female": 1, "female": 1, "2": 1, "2.0": 1,
                                    "1_male": 0, "male": 0, "1": 0, "1.0": 0})
-
     if "Race" in df_raw.columns:
         rs = df_raw["Race"].astype(str).str.strip().str.lower()
         df_raw["Race_nonwhite"] = rs.map({
@@ -67,9 +44,7 @@ def load_and_engineer(data_path):
             "5_other": "NW", "5": "NW", "5.0": "NW",
         }).map({"W": 0, "NW": 1})
 
-    # Deep location, exclusive definition: nonlobar involvement with no lobar
-    # component. Matches the original R2eD score, and differs from the broader
-    # definition used in the cross-sectional analysis.
+    # Exclusive deep location (no lobar component)
     for c in DEEP + LOBAR:
         if c not in df_raw.columns:
             df_raw[c] = np.nan
@@ -78,6 +53,7 @@ def load_and_engineer(data_path):
         (df_raw[LOBAR].max(axis=1).fillna(0) == 0)).astype(float)
     df_raw.loc[df_raw[DEEP].isna().all(axis=1), "Deep_Loc_excl"] = np.nan
 
+    # R2eD components
     for c in ["Drainage_vein_deep", "Drainage_vein_superficial"]:
         if c not in df_raw.columns:
             df_raw[c] = np.nan
@@ -101,6 +77,7 @@ def load_and_engineer(data_path):
         if c not in df_raw.columns:
             df_raw[c] = np.nan
 
+    # Treatment date
     for c in ["FirstFupHemoDate", "FirstSurgeryDate", "FirstSRSDate",
               "FirstEmboDate"]:
         if c in df_raw.columns:
@@ -110,9 +87,8 @@ def load_and_engineer(data_path):
         df_raw["FirstTxDate"] = df_raw[
             ["FirstSurgeryDate", "FirstSRSDate", "FirstEmboDate"]].min(axis=1)
 
+    # Event: hemorrhage before treatment
     def make_event(row):
-        # A bleed only counts if it happened before treatment; anything after
-        # treatment is censored, since the lesion is no longer untreated.
         treated = str(row.get("TreatedAVMs", "")).strip() == "1_Treated"
         bled = row.get("Follow_hemorrhge", 0) == 1
         if not treated:
@@ -147,42 +123,7 @@ def load_and_engineer(data_path):
     return df
 
 
-def cohort_summary(df, out_csv="cohort_summary.csv"):
-    """Follow-up and treatment breakdown for the Methods and Results text."""
-    rows = []
-
-    def _block(label, d):
-        t = d["time"].astype(float)
-        return {
-            "Group": label,
-            "N": len(d),
-            "Events": int(d["event"].sum()),
-            "Event_pct": round(100 * d["event"].mean(), 1),
-            "FU_mean_yr": round(float(t.mean()), 2),
-            "FU_sd_yr": round(float(t.std(ddof=1)), 2),
-            "FU_median_yr": round(float(t.median()), 2),
-            "FU_q1_yr": round(float(t.quantile(0.25)), 2),
-            "FU_q3_yr": round(float(t.quantile(0.75)), 2),
-            "Person_years": round(float(t.sum()), 1),
-        }
-
-    rows.append(_block("Full longitudinal cohort", df))
-    rows.append(_block("Treated", df[~df["untreated"]]))
-    rows.append(_block("Untreated", df[df["untreated"]]))
-    if "Ever_Ruptured" in df.columns:
-        rows.append(_block("Ruptured at presentation",
-                           df[df["Ever_Ruptured"] == 1]))
-        rows.append(_block("Unruptured at presentation",
-                           df[df["Ever_Ruptured"] == 0]))
-
-    out = pd.DataFrame(rows)
-    out.to_csv(out_csv, index=False)
-    print(out.to_string(index=False))
-    print(f"Saved {out_csv}")
-    return out
-
-
 def surv_array(df):
-    """Structured array in the (event, time) form scikit-survival expects."""
+    """Structured (event, time) array for scikit-survival."""
     return np.array(list(zip(df["event"].astype(bool), df["time"].astype(float))),
                     dtype=[("event", "?"), ("time", "<f8")])
