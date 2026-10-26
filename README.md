@@ -57,7 +57,7 @@ Fits and evaluates the classification model for hemorrhagic presentation: 7 mach
 conda create -n bavm-classification python=3.12
 conda activate bavm-classification
 cd Cross_Sectional_Analysis
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 Creating the environment and installing are one-time steps. In every new terminal, run `conda activate bavm-classification` before running anything.
@@ -94,7 +94,7 @@ Fits the time-to-rupture model on three predictors: age, exclusively deep nidus 
 conda create -n bavm-surv python=3.12
 conda activate bavm-surv
 cd Longitudinal_Analysis
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 ```
 
 **Run it.** Set `DATA_PATH` in `config.py` first, then:
