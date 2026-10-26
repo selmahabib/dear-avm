@@ -78,41 +78,37 @@ python run_all.py
 
 ## 2. Longitudinal analysis
 
-Fits the time-to-rupture model on three predictors: age, exclusively deep
-nidus location, and prior rupture at presentation.
+Fits the time-to-rupture model on three predictors: age, exclusively deep nidus location, and prior rupture at presentation.
 
-**Model.** Ridge-penalized Cox proportional hazards. 
+**Model.** Ridge-penalized Cox model with a time-varying effect of prior rupture. The prior-rupture hazard ratio is allowed to differ in the first year after diagnosis and afterwards (cut-point 1 year, pre-specified). Age and deep location have a constant effect.
 
-**Integer Score.** An integer 0–5 score derived by rounding the fitted
-coefficients to whole points for bedside use, stratifying into three tiers
-with HR 1.65 per tier. Both views come from the same three predictors. The
-score is basically the model rounded and it's not a separate fit.
+**Integer score.** An integer 0–7 score derived by rounding the fitted coefficients to whole points for bedside use: age 0–3 (one point per 20-year bracket: <20, 20–39, 40–59, ≥60), exclusive deep location 2, and prior rupture 2 in the first year and 1 afterwards. Patients are stratified into three tiers (Low 0–1, Medium 2–3, High 4–7), and a patient with prior rupture can move down a tier at 1 year. HR 2.62 per tier. The score is the model rounded; it is not a separate fit.
 
-**Set up the environment.** A separate one from the cross-sectional analysis
-— the two have their own dependencies and should not share an environment.
-From the repository root:
- 
-```bash
+**Set up the environment.** Use a separate environment from the cross-sectional analysis; the two have their own dependencies and should not share one. From the repository root:
+
+```
 conda create -n bavm-surv python=3.12
 conda activate bavm-surv
 cd Longitudinal_Analysis
 pip install -r requirements.txt
 ```
 
-**Run it.** Same as above: set the data path in  `Survival.py` and  `exhaustive_search.py` first, then:
+**Run it.** Set `DATA_PATH` in `config.py` first, then:
 
-```bash
-python run_all.py
+```
+python main.py                                  # full analysis
+python graphical_abstract.py <results folder>   # graphical-abstract KM plot, after main.py
+python exhaustive_search.py                     # feature selection, separate and slow
 ```
 
-**Constants are hardcoded.** Nothing from this analysis is loaded
-at runtime. The fitted values live in `avm-dashboard/src/lib/ruptureRisk.ts` (the three
-coefficients, the StandardScaler mean and SD for each predictor, and baseline
-survival at 2, 5 and 10 years).
+**Constants are hardcoded.** Nothing from this analysis is loaded at runtime. The fitted values live in `avm-dashboard/src/lib/ruptureRisk.ts`:
+- the four coefficients (age, deep location, prior rupture year 1, prior rupture after year 1) from `tv_model_penalized_coefs.csv`. They are on the original scale, so no scaler mean or SD is needed.
+- the cut-point (1 year).
+- the baseline cumulative hazard H0 at 1, 2, 5 and 10 years: 0.00446, 0.01548, 0.02928, 0.06595.
 
-If you refit the model, those constants must be updated manually. Nothing in
-the build will warn you if they drift out of sync with the analysis.
+Predicted risk by year t (for t > 1) is 1 − exp(−[exp(LP_early)·H0(1) + exp(LP_late)·(H0(t) − H0(1))]). LP_early uses the year-1 prior-rupture coefficient and LP_late the later one.
 
+If you refit the model, those constants must be updated manually. Nothing in the build will warn you if they drift out of sync with the analysis.
 ---
 
 ## 3. Dashboard — backend service
