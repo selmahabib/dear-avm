@@ -47,31 +47,35 @@ interface are started together and talk to each other over HTTP.
 
 ## 1. Cross-sectional analysis
 
-Fits and evaluates the classification model.
+Fits and evaluates the classification model for hemorrhagic presentation: 7 machine-learning models and the R2eD score.
 
-**Protocol.** 10 outer × 5 inner nested cross-validation. Hyperparameters are
-selected in the inner loop; every outer fold contributes held-out predictions,
-so reported discrimination is never measured on data used for tuning.
+**Protocol.** 10 outer × 5 inner nested cross-validation. Hyperparameters are selected in the inner loop; every outer fold contributes held-out predictions, so reported discrimination is never measured on data used for tuning.
 
 **Set up the environment.** From the repository root:
- 
-```bash
+
+```
 conda create -n bavm-classification python=3.12
 conda activate bavm-classification
 cd Cross_Sectional_Analysis
 pip install -r requirements.txt
 ```
- 
-Creating the environment and installing are one-time steps. In every new
-terminal, run `conda activate bavm-classification` before `python run_all.py`.
 
-**Run it.** Set the data path first. This points at a local copy and will not
-resolve on your machine. It appears in `Nested_CV.py`, which runs the
-pipelines and the model comparison, and in `figure_main.py` which generates
-the figures. Then:
- 
-```bash
-python run_all.py
+Creating the environment and installing are one-time steps. In every new terminal, run `conda activate bavm-classification` before running anything.
+
+**Run it.** Pass the path to your registry with `--data`, or set it once in `DATA_PATHS` in `config.py`. Then:
+
+```
+python main.py --data path/to/registry.xlsx
+```
+
+This runs the nested CV, model comparison, calibration, SHAP and DeLong tests, then the main figure, rank stability and risk bands. Results go to `bavm_cross_sectional_analysis_<date>/` next to the data file.
+
+Optional, separate steps:
+
+```
+python table1.py --data path/to/registry.xlsx --out <folder>           # univariate analysis
+python shap_dependence.py <results folder> --data path/to/registry.xlsx # size SHAP dependence
+python sensitivity.py --data path/to/registry.xlsx                      # undocumented feeder count
 ```
 
 ---
