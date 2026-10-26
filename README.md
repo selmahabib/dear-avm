@@ -98,7 +98,7 @@ pip install -r requirements.txt
 ```
 python main.py                                  # full analysis
 python graphical_abstract.py <results folder>   # graphical-abstract KM plot, after main.py
-python exhaustive_search.py                     # feature selection, separate and slow
+python exhaustive_search.py                     # feature selection, run separately
 ```
 
 **Constants are hardcoded.** Nothing from this analysis is loaded at runtime. The fitted values live in `avm-dashboard/src/lib/ruptureRisk.ts`:
