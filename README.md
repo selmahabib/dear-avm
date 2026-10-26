@@ -19,7 +19,7 @@ The two models answer different questions.
 | Question | Did this bAVM present with hemorrhage? | When might an unruptured bAVM bleed? |
 | Outcome | `Ever_Ruptured` at presentation | Time to rupture during follow-up |
 | Model | CatBoost gradient boosting | Ridge-penalized Cox proportional hazards |
-| Predictors | 8 inputs → 9 features | 3 inputs |
+| Predictors | 8 inputs | 3 inputs |
 | Output | Probability + TreeSHAP attribution | Survival at 2, 5 and 10 years / integer score |
 
 The classification model is not prognostic. It describes presentation at
